@@ -56,11 +56,11 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 	var user User
 	user.name = name
 
-	var passSha = sha256.New()
+	passSha := sha256.New()
 	passSha.Write([]byte(password))
-	user.password = string(passSha.Sum(nil))
+	user.password = fmt.Sprintf("%x",string(passSha.Sum(nil)))
 
-	var tokenSha = sha256.New()
+	tokenSha := sha256.New()
 	tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
 	user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
 
@@ -71,7 +71,42 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 }
 
 func loginUser(response http.ResponseWriter, request *http.Request) {
+	name := request.URL.Query().Get("name")
+	if name == "" {
+		http.Error(response, "Name required.", http.StatusBadRequest)
+		return;
+	}
 
+	password := request.URL.Query().Get("password")
+	if password == "" {
+		http.Error(response, "Password required.", http.StatusBadRequest)
+		return;
+	}
+
+	user, userExists := usersByName[name]
+	if !userExists {
+		http.Error(response, "Invalid login credentials.", http.StatusBadRequest)
+		return;
+	}
+
+	passSha := sha256.New()
+	passSha.Write([]byte(password))
+	hashedPass := fmt.Sprintf("%x",string(passSha.Sum(nil)))
+
+	if user.password != hashedPass {
+		http.Error(response, "Invalid login credentials.", http.StatusBadRequest)
+		return
+	}
+
+	if user.accessToken == "" {
+		tokenSha := sha256.New()
+		tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
+		user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
+	}
+
+	loggedInUsers[user.accessToken] = user
+
+	response.Write([]byte("{message: 'Login successful', accessToken: '" + user.accessToken +"'}"))
 }
 
 func logoutUser(response http.ResponseWriter, request *http.Request) {
