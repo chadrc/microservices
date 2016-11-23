@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"time"
 	"math/rand"
+	"os"
+	"strconv"
 )
 
 type User struct {
@@ -23,11 +25,12 @@ var usersByName map[string]*User = make(map[string]*User)
 var loggedInUsers map[string]*User = make(map[string]*User)
 
 func main() {
+
 	http.HandleFunc("/register", registerNewUser)
 	http.HandleFunc("/login", loginUser)
 	http.HandleFunc("/logout", logoutUser)
 	http.HandleFunc("/checktoken", checkAccessToken)
-	fmt.Println("Login service listening on port 8080")
+	fmt.Printf("%s: Login service listening on port 8080\n", strconv.Itoa(os.Getpid()))
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -63,7 +66,7 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 
 	usersByName[user.name] = &user
 
-	response.Write([]byte("{message: 'Registration successful.', accessToken: '" + user.accessToken + "'}"))
+	response.Write([]byte("{message: 'Registration successful.', accessToken: '" + fmt.Sprintf("%x",user.accessToken) + "'}"))
 }
 
 func loginUser(response http.ResponseWriter, request *http.Request) {
