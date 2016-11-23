@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Create array of services based on command line params
+# If no params were given use default service list
 PARAM_COUNT=$#
 if [ ${PARAM_COUNT} -ge 1 ] ; then
     COUNT=0
@@ -10,19 +12,19 @@ if [ ${PARAM_COUNT} -ge 1 ] ; then
     done
 else
     SERVICES=(
-    loginservice
-    loggerservice
-    cardgameservice
+        loginservice
+        loggerservice
+        cardgameservice
     )
 fi
 
-SERVICE_ROOT=github.com/chadrc/microservices
-
+# Loop through services and do docker build
 for SERVICE in ${SERVICES[@]}; do
     if [ -d "./"${SERVICE} ]; then
         echo Building ${SERVICE}
+        # Copy base Dockerfile to service root folder
         cp ./Dockerfile ./${SERVICE}/Dockerfile
-        echo | sudo docker build -t=${SERVICE} ./${SERVICE}
+        sudo docker build -t=${SERVICE} ./${SERVICE}
         rm -f ./${SERVICE}/Dockerfile
     else
         echo ${SERVICE} "does not exist."
