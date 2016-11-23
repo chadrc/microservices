@@ -128,5 +128,16 @@ func logoutUser(response http.ResponseWriter, request *http.Request) {
 }
 
 func checkAccessToken(response http.ResponseWriter, request *http.Request) {
+	token := request.URL.Query().Get("accessToken")
+	if token == "" {
+		http.Error(response, "Access token required.", http.StatusBadRequest)
+		return
+	}
 
+	_, exists := loggedInUsers[token]
+	if exists {
+		response.Write([]byte("{valid: true}"))
+	} else {
+		response.Write([]byte("{valid: false}"))
+	}
 }
