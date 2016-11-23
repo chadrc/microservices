@@ -62,11 +62,12 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 
 	var tokenSha = sha256.New()
 	tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
-	user.accessToken = string(tokenSha.Sum(nil))
+	user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
 
 	usersByName[user.name] = &user
+	loggedInUsers[user.accessToken] = &user
 
-	response.Write([]byte("{message: 'Registration successful.', accessToken: '" + fmt.Sprintf("%x",user.accessToken) + "'}"))
+	response.Write([]byte("{message: 'Registration successful.', accessToken: '" + user.accessToken + "'}"))
 }
 
 func loginUser(response http.ResponseWriter, request *http.Request) {
@@ -74,7 +75,21 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 }
 
 func logoutUser(response http.ResponseWriter, request *http.Request) {
+	token := request.URL.Query().Get("accessToken")
+	if token == "" {
+		http.Error(response, "Access token required.", http.StatusBadRequest)
+		return
+	}
 
+	user, exists := loggedInUsers[token]
+	if !exists {
+		http.Error(response, "Invalid access token.", http.StatusBadRequest)
+		return
+	}
+
+	user.accessToken = ""
+	delete(loggedInUsers, token)
+	response.Write([]byte("{message: 'Logout successful.'}"))
 }
 
 func checkAccessToken(response http.ResponseWriter, request *http.Request) {
