@@ -30,7 +30,7 @@ func main() {
 	http.HandleFunc("/login", loginUser)
 	http.HandleFunc("/logout", logoutUser)
 	http.HandleFunc("/checktoken", checkAccessToken)
-	fmt.Printf("%s: Login service listening on port 8080\n", strconv.Itoa(os.Getpid()))
+	fmt.Printf("%s: Login service listening on port 8080", strconv.Itoa(os.Getpid()))
 	http.ListenAndServe(":8080", nil)
 }
 
