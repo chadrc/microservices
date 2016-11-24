@@ -1,4 +1,6 @@
 #!/bin/bash
 
-sudo docker rm -f `cat ./temp/loginservice.containerid`
-rm -f ./temp/loginservice.containerid
+cat ./services.conf | while IFS=: read -r service port; do
+    sudo docker rm -f `cat ./temp/${service}.containerid`
+    rm -f ./temp/${service}.containerid
+done
