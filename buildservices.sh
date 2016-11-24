@@ -12,10 +12,10 @@ if [ ${PARAM_COUNT} -ge 1 ] ; then
     done
 else
     COUNT=0
-    cat ./services.conf | while IFS=: read -r service port; do
+    while IFS=: read -r service port; do
         SERVICES[${COUNT}]=${service}
         COUNT+=1
-    done
+    done < ./services.conf
 fi
 
 # Loop through services and do docker build
