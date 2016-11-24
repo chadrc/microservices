@@ -24,7 +24,7 @@ for SERVICE in ${SERVICES[@]}; do
         echo Building ${SERVICE}
         # Copy base Dockerfile to service root folder
         cp ./Dockerfile ./${SERVICE}/Dockerfile
-        sudo docker build -t=${SERVICE} ./${SERVICE}
+        docker build -t=${SERVICE} ./${SERVICE}
         rm -f ./${SERVICE}/Dockerfile
     else
         echo ${SERVICE} "does not exist."
