@@ -3,19 +3,19 @@
 # Create array of services based on command line params
 # If no params were given use default service list
 PARAM_COUNT=$#
+SERVICES=()
 if [ ${PARAM_COUNT} -ge 1 ] ; then
     COUNT=0
-    SERVICES=()
     for SERVICE in $@; do
         SERVICES[${COUNT}]=${SERVICE}
         COUNT+=1
     done
 else
-    SERVICES=(
-        loginservice
-        loggerservice
-        cardgameservice
-    )
+    COUNT=0
+    cat ./services.conf | while IFS=: read -r service port; do
+        SERVICES[${COUNT}]=${service}
+        COUNT+=1
+    done
 fi
 
 # Loop through services and do docker build
