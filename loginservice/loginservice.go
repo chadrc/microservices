@@ -6,8 +6,6 @@ import (
 	"crypto/sha256"
 	"time"
 	"math/rand"
-	"os"
-	"strconv"
 )
 
 type User struct {
@@ -30,7 +28,6 @@ func main() {
 	http.HandleFunc("/login", loginUser)
 	http.HandleFunc("/logout", logoutUser)
 	http.HandleFunc("/checktoken", checkAccessToken)
-	fmt.Printf("%s: Login service listening on port 8080", strconv.Itoa(os.Getpid()))
 	http.ListenAndServe(":8080", nil)
 }
 
