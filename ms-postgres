@@ -7,6 +7,10 @@ if [ ${1} == "start" ]; then
     fi
 elif [ ${1} == "stop" ]; then
     if [ ! -z "${query}" ]; then
+        docker stop ms-postgres
+    fi
+elif [ ${1} == "kill" ]; then
+    if [ ! -z "${query}" ]; then
         docker rm -f ms-postgres
     fi
 fi
