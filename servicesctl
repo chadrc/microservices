@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ ${1} == "build" ]; then
+    ./buildservices.sh
+elif [ ${1} == "start" ]; then
+    ./runservices.sh
+elif [ ${1} == "stop" ]; then
+    ./stopservices.sh
+fi

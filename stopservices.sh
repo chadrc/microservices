@@ -1,6 +1,5 @@
 #!/bin/bash
 
 while IFS=: read -r service port; do
-    docker rm -f `cat ./temp/${service}.containerid`
-    rm -f ./temp/${service}.containerid
+    docker rm -f ${service}-active
 done < ./services.conf
