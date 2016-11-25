@@ -8,4 +8,6 @@ elif [ ${cmd} == "start" ]; then
     ./runservices.sh
 elif [ ${cmd} == "stop" ]; then
     ./stopservices.sh
+elif [ ${cmd} == "install" ]; then
+    ./installservices.sh
 fi

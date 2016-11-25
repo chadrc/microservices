@@ -1,14 +1,9 @@
 #!/bin/bash
 
-SERVICES=(
-loginservice
-loggerservice
-cardgameservice
-)
-
 SERVICE_ROOT=github.com/chadrc/microservices
 
-for SERVICE in ${SERVICES[@]}; do
-    echo Installing ${SERVICE}
-    go install ${SERVICE_ROOT}/${SERVICE}
-done
+while IFS=: read -r service port; do
+    echo "Installing ${service}..."
+    go install ${SERVICE_ROOT}/${service}
+    echo "Installed"
+done < ./services.conf
