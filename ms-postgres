@@ -13,4 +13,8 @@ elif [ ${1} == "kill" ]; then
     if [ ! -z "${query}" ]; then
         docker rm -f ms-postgres
     fi
+elif [ ${1} == "connect" ]; then
+    if [ ! -z "${query}" ]; then
+        docker exec -it ms-postgres psql postgres postgres
+    fi
 fi
