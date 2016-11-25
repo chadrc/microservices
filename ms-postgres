@@ -15,6 +15,6 @@ elif [ ${1} == "kill" ]; then
     fi
 elif [ ${1} == "connect" ]; then
     if [ ! -z "${query}" ]; then
-        docker exec -it ms-postgres psql postgres postgres
+        docker exec -it ms-postgres psql micro_services postgres
     fi
 fi
