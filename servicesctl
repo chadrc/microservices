@@ -1,9 +1,11 @@
 #!/bin/bash
 
-if [ ${1} == "build" ]; then
-    ./buildservices.sh
-elif [ ${1} == "start" ]; then
+cmd=${1}
+shift
+if [ ${cmd} == "build" ]; then
+    ./buildservices.sh "$@"
+elif [ ${cmd} == "start" ]; then
     ./runservices.sh
-elif [ ${1} == "stop" ]; then
+elif [ ${cmd} == "stop" ]; then
     ./stopservices.sh
 fi
