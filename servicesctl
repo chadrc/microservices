@@ -10,4 +10,8 @@ elif [ ${cmd} == "stop" ]; then
     ./scripts/stopservices.sh
 elif [ ${cmd} == "install" ]; then
     ./scripts/installservices.sh
+elif [ ${cmd} == "sbs" ]; then
+    ./scripts/stopservices.sh
+    ./scripts/buildservices.sh
+    ./scripts/runservices.sh
 fi

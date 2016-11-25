@@ -6,6 +6,9 @@ import (
 	"crypto/sha256"
 	"time"
 	"math/rand"
+	"database/sql"
+	_ "github.com/lib/pq"
+	"os"
 )
 
 type User struct {
@@ -22,13 +25,39 @@ func (user *User) GetName() (username string) {
 var usersByName map[string]*User = make(map[string]*User)
 var loggedInUsers map[string]*User = make(map[string]*User)
 
-func main() {
+var db *sql.DB
+var dockerBridgeAddr string
+var postgresPort = "5300"
+var postgresConnected bool
+var postgresConnectionMessage string
 
+func main() {
+	dockerBridgeAddr = os.Getenv("DOCKER_BRIDGE_IP")
+
+	conn, dbErr := sql.Open("postgres",
+		fmt.Sprintf("sslmode=disable user=postgres password=postgres dbname=micro_services port=%s host=%s",
+			postgresPort, dockerBridgeAddr))
+	if dbErr != nil {
+		postgresConnected = false
+		postgresConnectionMessage = dbErr.Error()
+	} else {
+		postgresConnected = true
+		postgresConnectionMessage = "Connected"
+		db = conn
+	}
+
+	http.HandleFunc("/", getInfo)
 	http.HandleFunc("/register", registerNewUser)
 	http.HandleFunc("/login", loginUser)
 	http.HandleFunc("/logout", logoutUser)
 	http.HandleFunc("/checktoken", checkAccessToken)
 	http.ListenAndServe(":8080", nil)
+}
+
+func getInfo(response http.ResponseWriter, request *http.Request) {
+	response.Write([]byte(
+		fmt.Sprintf("{dockerBridgeAddr: %s, postgresConnected: %t, postgresConnectionMessage: %s}",
+			dockerBridgeAddr, postgresConnected, postgresConnectionMessage)))
 }
 
 func registerNewUser(response http.ResponseWriter, request *http.Request) {
@@ -61,8 +90,16 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 	tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
 	user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
 
-	usersByName[user.name] = &user
-	loggedInUsers[user.accessToken] = &user
+	//usersByName[user.name] = &user
+	//loggedInUsers[user.accessToken] = &user
+
+	var userName string
+	err := db.QueryRow(`INSERT INTO users (name, password, accessToken)
+				VALUES($1, $2, $3)`, user.name, user.password, user.accessToken).Scan(&userName)
+	if err != nil {
+		http.Error(response, "Query error: " + err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	response.Write([]byte("{message: 'Registration successful.', accessToken: '" + user.accessToken + "'}"))
 }
