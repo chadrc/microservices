@@ -73,10 +73,17 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 		return;
 	}
 
-	_, userExists := usersByName[name]
-	if userExists {
+	var dataName string
+	userRow := db.QueryRow("SELECT name FROM users WHERE name = $1", name)
+	err := userRow.Scan(&dataName)
+	if err != nil && err != sql.ErrNoRows{
+		http.Error(response, "DB Error: " + err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err != sql.ErrNoRows {
 		http.Error(response, "User with that name already exists.", http.StatusBadRequest)
-		return;
+		return
 	}
 
 	var user User
@@ -93,11 +100,10 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 	//usersByName[user.name] = &user
 	//loggedInUsers[user.accessToken] = &user
 
-	var userName string
-	err := db.QueryRow(`INSERT INTO users (name, password, accessToken)
-				VALUES($1, $2, $3)`, user.name, user.password, user.accessToken).Scan(&userName)
+	_, err = db.Query(`INSERT INTO users (name, password, accessToken)
+				VALUES($1, $2, $3)`, user.name, user.password, user.accessToken)
 	if err != nil {
-		http.Error(response, "Query error: " + err.Error(), http.StatusInternalServerError)
+		http.Error(response, "DB error: " + err.Error(), http.StatusInternalServerError)
 		return
 	}
 
