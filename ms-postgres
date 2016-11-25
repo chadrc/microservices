@@ -2,8 +2,13 @@
 
 query=`docker ps | grep ms-postgres`
 if [ ${1} == "start" ]; then
+    query2=`docker ps -a | grep ms-postgres`
     if [ -z "${query}" ]; then
-        docker run --name=ms-postgres -d -p 5300:5432 services-postgres
+        if [ -z "${query2}" ]; then
+            docker run --name=ms-postgres -d -p 5300:5432 services-postgres
+        else
+            docker start ms-postgres
+        fi
     fi
 elif [ ${1} == "stop" ]; then
     if [ ! -z "${query}" ]; then
