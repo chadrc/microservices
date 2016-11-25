@@ -3,11 +3,11 @@
 cmd=${1}
 shift
 if [ ${cmd} == "build" ]; then
-    ./buildservices.sh "$@"
+    ./scripts/buildservices.sh "$@"
 elif [ ${cmd} == "start" ]; then
-    ./runservices.sh
+    ./scripts/runservices.sh
 elif [ ${cmd} == "stop" ]; then
-    ./stopservices.sh
+    ./scripts/stopservices.sh
 elif [ ${cmd} == "install" ]; then
-    ./installservices.sh
+    ./scripts/installservices.sh
 fi
