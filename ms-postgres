@@ -22,4 +22,6 @@ elif [ ${1} == "connect" ]; then
     if [ ! -z "${query}" ]; then
         docker exec -it ms-postgres psql micro_services postgres
     fi
+elif [ ${1} == "build" ]; then
+    docker build -t=services-postgres ./postgresimage/
 fi
