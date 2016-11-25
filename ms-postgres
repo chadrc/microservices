@@ -1,0 +1,12 @@
+#!/bin/bash
+
+query=`docker ps | grep ms-postgres`
+if [ ${1} == "start" ]; then
+    if [ -z "${query}" ]; then
+        docker run --name=ms-postgres -d -p 5300:5432 services-postgres
+    fi
+elif [ ${1} == "stop" ]; then
+    if [ ! -z "${query}" ]; then
+        docker rm -f ms-postgres
+    fi
+fi
