@@ -48,3 +48,19 @@ CREATE OR REPLACE FUNCTION ping_session_and_get_user_with_access_token(token VAR
       END;
     $$
     LANGUAGE "plpgsql" VOLATILE;
+
+CREATE OR REPLACE FUNCTION update_access_token_and_ping_session(token VARCHAR, newToken VARCHAR)
+  RETURNS TABLE (
+    user_id INTEGER,
+    user_name VARCHAR(255),
+    session_id INTEGER
+  )
+    as $$
+      DECLARE
+
+      BEGIN
+        UPDATE user_accounts SET accesstoken=newToken WHERE accesstoken=token;
+        RETURN QUERY SELECT * FROM ping_session_and_get_user_with_access_token(newToken);
+      END;
+    $$
+    LANGUAGE "plpgsql" VOLATILE;
