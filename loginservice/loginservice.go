@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	_ "github.com/lib/pq"
 	"os"
+	"errors"
 )
 
 type User struct {
@@ -60,6 +61,23 @@ func getInfo(response http.ResponseWriter, request *http.Request) {
 			dockerBridgeAddr, postgresConnected, postgresConnectionMessage)))
 }
 
+func getUserFromDB(name string) (user *User, err error) {
+	user = new(User)
+	userRow := db.QueryRow("SELECT name, password, accessToken FROM users WHERE name = $1", name)
+
+	err = userRow.Scan(&user.name, &user.password, &user.accessToken)
+	if err != nil {
+		if (err == sql.ErrNoRows) {
+			user = nil
+			err = nil
+		} else {
+			err = errors.New("DB Error: " + err.Error())
+		}
+		return
+	}
+	return
+}
+
 func registerNewUser(response http.ResponseWriter, request *http.Request) {
 	name := request.URL.Query().Get("name")
 	if name == "" {
@@ -73,15 +91,13 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 		return;
 	}
 
-	var dataName string
-	userRow := db.QueryRow("SELECT name FROM users WHERE name = $1", name)
-	err := userRow.Scan(&dataName)
-	if err != nil && err != sql.ErrNoRows{
-		http.Error(response, "DB Error: " + err.Error(), http.StatusInternalServerError)
+	dbUser, err := getUserFromDB(name)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if err != sql.ErrNoRows {
+	if dbUser != nil {
 		http.Error(response, "User with that name already exists.", http.StatusBadRequest)
 		return
 	}
@@ -96,9 +112,6 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 	tokenSha := sha256.New()
 	tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
 	user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
-
-	//usersByName[user.name] = &user
-	//loggedInUsers[user.accessToken] = &user
 
 	_, err = db.Query(`INSERT INTO users (name, password, accessToken)
 				VALUES($1, $2, $3)`, user.name, user.password, user.accessToken)
