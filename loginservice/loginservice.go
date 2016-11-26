@@ -10,6 +10,7 @@ import (
 	_ "github.com/lib/pq"
 	"os"
 	"errors"
+	"strings"
 )
 
 type User struct {
@@ -58,37 +59,31 @@ func getInfo(response http.ResponseWriter, request *http.Request) {
 			dockerBridgeAddr, postgresConnected, postgresConnectionMessage)))
 }
 
-func getUserByName(name string) (user *User, err error) {
+func resolveUserRow(rows *sql.Row) (user *User, err error) {
 	user = new(User)
-	userRow := db.QueryRow("SELECT name, password, accessToken FROM users WHERE name = $1", name)
-
-	err = userRow.Scan(&user.name, &user.password, &user.accessToken)
+	err = rows.Scan(&user.name, &user.password, &user.accessToken)
 	if err != nil {
+		user = nil
 		if (err == sql.ErrNoRows) {
-			user = nil
 			err = nil
 		} else {
 			err = errors.New("DB Error: " + err.Error())
 		}
 		return
 	}
+	user.accessToken = strings.Trim(user.accessToken, " ")
+	return
+}
+
+func getUserByName(name string) (user *User, err error) {
+	userRow := db.QueryRow("SELECT name, password, accessToken FROM users WHERE name = $1", name)
+	user, err = resolveUserRow(userRow)
 	return
 }
 
 func getUserByAccessToken(token string) (user *User, err error) {
-	user = new(User)
 	userRow := db.QueryRow("SELECT name, password, accessToken FROM users WHERE accessToken = $1", token)
-
-	err = userRow.Scan(&user.name, &user.password, &user.accessToken)
-	if err != nil {
-		if (err == sql.ErrNoRows) {
-			user = nil
-			err = nil
-		} else {
-			err = errors.New("DB Error: " + err.Error())
-		}
-		return
-	}
+	user, err = resolveUserRow(userRow)
 	return
 }
 
@@ -102,7 +97,7 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 	password := request.URL.Query().Get("password")
 	if password == "" {
 		http.Error(response, "Password required.", http.StatusBadRequest)
-		return;
+		return
 	}
 
 	dbUser, err := getUserByName(name)
@@ -141,13 +136,13 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 	name := request.URL.Query().Get("name")
 	if name == "" {
 		http.Error(response, "Name required.", http.StatusBadRequest)
-		return;
+		return
 	}
 
 	password := request.URL.Query().Get("password")
 	if password == "" {
 		http.Error(response, "Password required.", http.StatusBadRequest)
-		return;
+		return
 	}
 
 	user, err := getUserByName(name)
