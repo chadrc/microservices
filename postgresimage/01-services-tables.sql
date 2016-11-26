@@ -1,9 +1,9 @@
 CREATE TABLE user_accounts (
   id SERIAL NOT NULL UNIQUE,
-  name VARCHAR(128) PRIMARY KEY,
+  name VARCHAR(255) PRIMARY KEY,
   password VARCHAR(64) NOT NULL,
   accessToken VARCHAR(64),
-  currentSession INTEGER NOT NULL ,
+  currentSession INTEGER NOT NULL,
   created TIMESTAMP NOT NULL DEFAULT now()
 );
 
