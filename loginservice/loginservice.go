@@ -23,9 +23,6 @@ func (user *User) GetName() (username string) {
 	return
 }
 
-var usersByName map[string]*User = make(map[string]*User)
-var loggedInUsers map[string]*User = make(map[string]*User)
-
 var db *sql.DB
 var dockerBridgeAddr string
 var postgresPort = "5300"
@@ -61,9 +58,26 @@ func getInfo(response http.ResponseWriter, request *http.Request) {
 			dockerBridgeAddr, postgresConnected, postgresConnectionMessage)))
 }
 
-func getUserFromDB(name string) (user *User, err error) {
+func getUserByName(name string) (user *User, err error) {
 	user = new(User)
 	userRow := db.QueryRow("SELECT name, password, accessToken FROM users WHERE name = $1", name)
+
+	err = userRow.Scan(&user.name, &user.password, &user.accessToken)
+	if err != nil {
+		if (err == sql.ErrNoRows) {
+			user = nil
+			err = nil
+		} else {
+			err = errors.New("DB Error: " + err.Error())
+		}
+		return
+	}
+	return
+}
+
+func getUserByAccessToken(token string) (user *User, err error) {
+	user = new(User)
+	userRow := db.QueryRow("SELECT name, password, accessToken FROM users WHERE accessToken = $1", token)
 
 	err = userRow.Scan(&user.name, &user.password, &user.accessToken)
 	if err != nil {
@@ -91,7 +105,7 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 		return;
 	}
 
-	dbUser, err := getUserFromDB(name)
+	dbUser, err := getUserByName(name)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
@@ -136,10 +150,15 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 		return;
 	}
 
-	user, userExists := usersByName[name]
-	if !userExists {
+	user, err := getUserByName(name)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if user == nil {
 		http.Error(response, "Invalid login credentials.", http.StatusBadRequest)
-		return;
+		return
 	}
 
 	passSha := sha256.New()
@@ -157,7 +176,11 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 		user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
 	}
 
-	loggedInUsers[user.accessToken] = user
+	_, err = db.Query("UPDATE users SET accessToken = $1 WHERE name = $2", user.accessToken, user.name)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	response.Write([]byte("{message: 'Login successful', accessToken: '" + user.accessToken +"'}"))
 }
@@ -169,14 +192,16 @@ func logoutUser(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	user, exists := loggedInUsers[token]
-	if !exists {
-		http.Error(response, "Invalid access token.", http.StatusBadRequest)
+	user, err := getUserByAccessToken(token)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	user.accessToken = ""
-	delete(loggedInUsers, token)
+	_, err = db.Query("UPDATE users SET accessToken = $1 WHERE name = $2", "", user.name)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+	}
 	response.Write([]byte("{message: 'Logout successful.'}"))
 }
 
@@ -187,8 +212,12 @@ func checkAccessToken(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	_, exists := loggedInUsers[token]
-	if exists {
+	user, err := getUserByAccessToken(token)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+	}
+
+	if user != nil {
 		response.Write([]byte("{valid: true}"))
 	} else {
 		response.Write([]byte("{valid: false}"))
