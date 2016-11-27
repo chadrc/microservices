@@ -3,13 +3,11 @@ package main
 import (
 	"crypto/sha256"
 	"database/sql"
-	"errors"
 	"fmt"
 	_ "github.com/lib/pq"
 	"math/rand"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -57,34 +55,6 @@ func getInfo(response http.ResponseWriter, _ *http.Request) {
 	response.Write([]byte(
 		fmt.Sprintf("{dockerBridgeAddr: %s, postgresConnected: %t, postgresConnectionMessage: %s}",
 			dockerBridgeAddr, postgresConnected, postgresConnectionMessage)))
-}
-
-func resolveUserRow(rows *sql.Row) (user *User, err error) {
-	user = new(User)
-	err = rows.Scan(&user.name, &user.password, &user.accessToken)
-	if err != nil {
-		user = nil
-		if err == sql.ErrNoRows {
-			err = nil
-		} else {
-			err = errors.New("DB Error: " + err.Error())
-		}
-		return
-	}
-	user.accessToken = strings.Trim(user.accessToken, " ")
-	return
-}
-
-func getUserByName(name string) (user *User, err error) {
-	userRow := db.QueryRow("SELECT name, password, access_token FROM users WHERE name = $1", name)
-	user, err = resolveUserRow(userRow)
-	return
-}
-
-func getUserByAccessToken(token string) (user *User, err error) {
-	userRow := db.QueryRow("SELECT name, password, access_token FROM users WHERE access_token = $1", token)
-	user, err = resolveUserRow(userRow)
-	return
 }
 
 func registerNewUser(response http.ResponseWriter, request *http.Request) {
