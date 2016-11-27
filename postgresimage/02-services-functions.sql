@@ -80,3 +80,23 @@ CREATE OR REPLACE FUNCTION update_access_token_and_ping_session(token VARCHAR, n
       END;
     $$
     LANGUAGE "plpgsql" VOLATILE;
+
+CREATE OR REPLACE FUNCTION clear_access_token(token VARCHAR)
+  RETURNS TABLE (
+    userId INTEGER,
+    sessionId INTEGER
+  )
+    AS $$
+      DECLARE
+        found_user_id INTEGER = 0;
+        found_session_id INTEGER = 0;
+      BEGIN
+        IF EXISTS(SELECT access_token FROM user_accounts WHERE access_token=token) THEN
+          UPDATE user_accounts SET access_token='' WHERE access_token=token
+          RETURNING id, current_session INTO found_user_id, found_session_id;
+        END IF;
+
+        RETURN QUERY SELECT found_user_id, found_session_id;
+      END;
+    $$
+    LANGUAGE "plpgsql" VOLATILE;
