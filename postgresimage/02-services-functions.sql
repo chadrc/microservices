@@ -68,7 +68,6 @@ CREATE OR REPLACE FUNCTION ping_session_and_get_user_with_access_token(token VAR
 CREATE OR REPLACE FUNCTION update_access_token_and_ping_session(token VARCHAR, newToken VARCHAR)
   RETURNS TABLE (
     userId INTEGER,
-    userName VARCHAR(255),
     sessionId INTEGER
   )
     AS $$

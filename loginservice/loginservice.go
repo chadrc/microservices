@@ -211,15 +211,17 @@ func logoutUser(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	user, err := getUserByAccessToken(token)
+	var userId int32;
+	var sessionId int32;
+	err := db.QueryRow("SELECT * FROM clear_access_token($1)", token).Scan(&userId, &sessionId)
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusBadRequest)
+		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	_, err = db.Query("UPDATE users SET access_token = $1 WHERE name = $2", "", user.name)
-	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
+	if userId == 0 {
+		http.Error(response, "Invalid access token.", http.StatusBadRequest)
+		return
 	}
 	response.Write([]byte("{message: 'Logout successful.'}"))
 }
