@@ -14,9 +14,9 @@ import (
 )
 
 type User struct {
-	name         string
-	password     string
-	sessionToken string
+	name        string
+	password    string
+	accessToken string
 }
 
 func (user *User) GetName() (username string) {
@@ -49,7 +49,7 @@ func main() {
 	http.HandleFunc("/register", registerNewUser)
 	http.HandleFunc("/login", loginUser)
 	http.HandleFunc("/logout", logoutUser)
-	http.HandleFunc("/checktoken", checkSessionToken)
+	http.HandleFunc("/checktoken", checkAccessToken)
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -61,7 +61,7 @@ func getInfo(response http.ResponseWriter, _ *http.Request) {
 
 func resolveUserRow(rows *sql.Row) (user *User, err error) {
 	user = new(User)
-	err = rows.Scan(&user.name, &user.password, &user.sessionToken)
+	err = rows.Scan(&user.name, &user.password, &user.accessToken)
 	if err != nil {
 		user = nil
 		if err == sql.ErrNoRows {
@@ -71,18 +71,18 @@ func resolveUserRow(rows *sql.Row) (user *User, err error) {
 		}
 		return
 	}
-	user.sessionToken = strings.Trim(user.sessionToken, " ")
+	user.accessToken = strings.Trim(user.accessToken, " ")
 	return
 }
 
 func getUserByName(name string) (user *User, err error) {
-	userRow := db.QueryRow("SELECT name, password, sessionToken FROM users WHERE name = $1", name)
+	userRow := db.QueryRow("SELECT name, password, access_token FROM users WHERE name = $1", name)
 	user, err = resolveUserRow(userRow)
 	return
 }
 
-func getUserBySessionToken(token string) (user *User, err error) {
-	userRow := db.QueryRow("SELECT name, password, sessionToken FROM users WHERE sessionToken = $1", token)
+func getUserByAccessToken(token string) (user *User, err error) {
+	userRow := db.QueryRow("SELECT name, password, access_token FROM users WHERE access_token = $1", token)
 	user, err = resolveUserRow(userRow)
 	return
 }
@@ -121,17 +121,17 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 
 	tokenSha := sha256.New()
 	tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
-	user.sessionToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
+	user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
 
 	var userId int32
 	var sessionId int32
-	err = db.QueryRow("SELECT * FROM create_user($1, $2, $3)", name, user.password, user.sessionToken).Scan(&userId, &sessionId)
+	err = db.QueryRow("SELECT * FROM create_user($1, $2, $3)", name, user.password, user.accessToken).Scan(&userId, &sessionId)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	response.Write([]byte("{message: 'Registration successful.', sessionToken: '" + user.sessionToken + "'}"))
+	response.Write([]byte("{message: 'Registration successful.', accessToken: '" + user.accessToken + "'}"))
 }
 
 func loginUser(response http.ResponseWriter, request *http.Request) {
@@ -167,11 +167,11 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	if user.sessionToken == "" {
+	if user.accessToken == "" {
 		tokenSha := sha256.New()
 		tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
-		user.sessionToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
-		_, err = db.Query("INSERT INTO session_tokens (username, token) VALUES($1, $2)", user.name, user.sessionToken)
+		user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
+		_, err = db.Query("INSERT INTO session_tokens (username, token) VALUES($1, $2)", user.name, user.accessToken)
 		if err != nil {
 			http.Error(response, err.Error(), http.StatusInternalServerError)
 			return
@@ -179,7 +179,7 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 	}
 
 	tx, err := db.Begin()
-	_, err = tx.Exec(`UPDATE users SET sessionToken = $1 WHERE name = $2;`, user.sessionToken, user.name)
+	_, err = tx.Exec(`UPDATE users SET access_token = $1 WHERE name = $2;`, user.accessToken, user.name)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		tx.Rollback()
@@ -187,7 +187,7 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 	}
 
 	_, err = tx.Exec(`UPDATE session_tokens SET lastcheck = now() WHERE token = $1 AND username = $2;`,
-		user.sessionToken, user.name)
+		user.accessToken, user.name)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		tx.Rollback()
@@ -201,48 +201,44 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	response.Write([]byte("{message: 'Login successful', sessionToken: '" + user.sessionToken + "'}"))
+	response.Write([]byte("{message: 'Login successful', accessToken: '" + user.accessToken + "'}"))
 }
 
 func logoutUser(response http.ResponseWriter, request *http.Request) {
-	token := request.URL.Query().Get("sessionToken")
+	token := request.URL.Query().Get("accessToken")
 	if token == "" {
 		http.Error(response, "Access token required.", http.StatusBadRequest)
 		return
 	}
 
-	user, err := getUserBySessionToken(token)
+	user, err := getUserByAccessToken(token)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	_, err = db.Query("UPDATE users SET sessionToken = $1 WHERE name = $2", "", user.name)
+	_, err = db.Query("UPDATE users SET access_token = $1 WHERE name = $2", "", user.name)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 	}
 	response.Write([]byte("{message: 'Logout successful.'}"))
 }
 
-func checkSessionToken(response http.ResponseWriter, request *http.Request) {
-	token := request.URL.Query().Get("sessionToken")
+func checkAccessToken(response http.ResponseWriter, request *http.Request) {
+	token := request.URL.Query().Get("accessToken")
 	if token == "" {
 		http.Error(response, "Access token required.", http.StatusBadRequest)
 		return
 	}
 
-	user, err := getUserBySessionToken(token)
+	var userId int32;
+	var sessionId int32;
+	err := db.QueryRow("SELECT * FROM ping_session_and_get_user_with_access_token($1)", token).Scan(&userId, &sessionId)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 	}
 
-	_, err = db.Exec(`UPDATE session_tokens SET lastcheck = now() WHERE username = $1 AND token = $2`, user.name, user.sessionToken)
-	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if user != nil {
+	if userId != 0 {
 		response.Write([]byte("{valid: true}"))
 	} else {
 		response.Write([]byte("{valid: false}"))
