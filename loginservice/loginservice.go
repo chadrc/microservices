@@ -147,61 +147,29 @@ func loginUser(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	user, err := getUserByName(name)
-	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if user == nil {
-		http.Error(response, "Invalid login credentials.", http.StatusBadRequest)
-		return
-	}
-
 	passSha := sha256.New()
 	passSha.Write([]byte(password))
 	hashedPass := fmt.Sprintf("%x", string(passSha.Sum(nil)))
 
-	if user.password != hashedPass {
+	tokenSha := sha256.New()
+	tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
+	newAccessToken := fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
+
+	var userId int32;
+	var sessionId int32;
+	var accessToken string;
+	err := db.QueryRow("SELECT * FROM get_session_with_username_and_pass($1, $2, $3)", name, hashedPass, newAccessToken).Scan(&userId, &sessionId, &accessToken)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if userId == 0 {
 		http.Error(response, "Invalid login credentials.", http.StatusBadRequest)
 		return
 	}
 
-	if user.accessToken == "" {
-		tokenSha := sha256.New()
-		tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
-		user.accessToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
-		_, err = db.Query("INSERT INTO session_tokens (username, token) VALUES($1, $2)", user.name, user.accessToken)
-		if err != nil {
-			http.Error(response, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	tx, err := db.Begin()
-	_, err = tx.Exec(`UPDATE users SET access_token = $1 WHERE name = $2;`, user.accessToken, user.name)
-	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		tx.Rollback()
-		return
-	}
-
-	_, err = tx.Exec(`UPDATE session_tokens SET lastcheck = now() WHERE token = $1 AND username = $2;`,
-		user.accessToken, user.name)
-	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		tx.Rollback()
-		return
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		tx.Rollback()
-		return
-	}
-
-	response.Write([]byte("{message: 'Login successful', accessToken: '" + user.accessToken + "'}"))
+	response.Write([]byte("{message: 'Login successful', accessToken: '" + accessToken + "'}"))
 }
 
 func logoutUser(response http.ResponseWriter, request *http.Request) {
