@@ -2,7 +2,7 @@ CREATE TABLE user_accounts (
   id SERIAL NOT NULL UNIQUE,
   name VARCHAR(255) PRIMARY KEY,
   password VARCHAR(64) NOT NULL,
-  access_token VARCHAR(64) UNIQUE,
+  access_token VARCHAR(64) NOT NULL UNIQUE DEFAULT '',
   current_session INTEGER NOT NULL,
   created TIMESTAMP NOT NULL DEFAULT now()
 );

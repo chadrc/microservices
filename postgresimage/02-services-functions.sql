@@ -33,7 +33,6 @@ CREATE OR REPLACE FUNCTION ping_session_and_get_user_with_access_token(token VAR
       DECLARE
         found_userId INTEGER := 0;
         found_sessionId INTEGER := 0;
-        found_userName VARCHAR(255) := '';
         session_timeout INTERVAL := 10 * INTERVAL '1 MINUTE';
         found_user user_accounts;
         user_session user_sessions;
@@ -44,7 +43,6 @@ CREATE OR REPLACE FUNCTION ping_session_and_get_user_with_access_token(token VAR
                                             AND user_id=found_user.id INTO user_session;
 
           found_userId = found_user.id;
-          found_userName = found_user.name;
 
           IF (now() - user_session.last_check) > session_timeout THEN
             found_sessionId = user_session.id+1;
@@ -96,6 +94,39 @@ CREATE OR REPLACE FUNCTION clear_access_token(token VARCHAR)
         END IF;
 
         RETURN QUERY SELECT found_user_id, found_session_id;
+      END;
+    $$
+    LANGUAGE "plpgsql" VOLATILE;
+
+CREATE OR REPLACE FUNCTION get_session_with_username_and_pass(username VARCHAR, pass VARCHAR, token VARCHAR)
+  RETURNS TABLE (
+    userId INTEGER,
+    sessionId INTEGER,
+    accessToken VARCHAR(64)
+  )
+    AS $$
+      DECLARE
+        found_userId INTEGER := 0;
+        found_sessionId INTEGER := 0;
+        found_token VARCHAR(64) := '';
+      BEGIN
+        IF EXISTS (SELECT id FROM user_accounts WHERE name=username AND password=pass) THEN
+
+          UPDATE user_accounts SET access_token=token
+          WHERE name=username
+                AND password=pass
+                AND access_token=''
+          RETURNING access_token INTO found_token;
+
+          if found_token IS NULL THEN
+            SELECT access_token FROM user_accounts WHERE name=username AND password=pass INTO found_token;
+          END IF;
+
+          SELECT * FROM ping_session_and_get_user_with_access_token(found_token) INTO found_userId, found_sessionId;
+          RETURN QUERY SELECT found_userId, found_sessionId, found_token;
+        ELSE
+          RETURN QUERY SELECT found_userId, found_sessionId, found_token;
+        END IF;
       END;
     $$
     LANGUAGE "plpgsql" VOLATILE;
