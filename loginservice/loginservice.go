@@ -100,13 +100,14 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	dbUser, err := getUserByName(name)
+	var dbUser string
+	err := db.QueryRow("SELECT * FROM username_exists($1)", name).Scan(&dbUser)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if dbUser != nil {
+	if dbUser != "" {
 		http.Error(response, "User with that name already exists.", http.StatusBadRequest)
 		return
 	}
@@ -122,30 +123,11 @@ func registerNewUser(response http.ResponseWriter, request *http.Request) {
 	tokenSha.Write([]byte(time.Now().String() + string(rand.Int63())))
 	user.sessionToken = fmt.Sprintf("%x", string(tokenSha.Sum(nil)))
 
-	tx, err := db.Begin()
+	var userId int32
+	var sessionId int32
+	err = db.QueryRow("SELECT * FROM create_user($1, $2, $3)", name, user.password, user.sessionToken).Scan(&userId, &sessionId)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	_, err = tx.Exec(`INSERT INTO users (name, password, sessionToken) VALUES($1, $2, $3);`,
-				user.name, user.password, user.sessionToken)
-	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		tx.Rollback()
-		return
-	}
-
-	_, err = tx.Exec(`INSERT INTO session_tokens (username, token) VALUES($1, $2);`, user.name, user.sessionToken)
-	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		tx.Rollback()
-		return
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		http.Error(response, "DB error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

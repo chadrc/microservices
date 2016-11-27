@@ -1,16 +1,26 @@
 CREATE OR REPLACE FUNCTION username_exists(username VARCHAR)
   RETURNS VARCHAR(255)
     AS $$
-    SELECT name FROM user_accounts WHERE name=username;
+    DECLARE
+      user_name VARCHAR = '';
+    BEGIN
+      IF EXISTS (SELECT name FROM user_accounts WHERE name=username) THEN
+        SELECT name FROM user_accounts WHERE name=username INTO user_name;
+      END IF;
+      RETURN user_name;
+    END;
     $$
-    LANGUAGE SQL;
+    LANGUAGE "plpgsql" IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION create_user(username VARCHAR, pass VARCHAR, token VARCHAR)
-  RETURNS user_accounts
+  RETURNS TABLE (
+    userId INTEGER,
+    sessionId INTEGER
+  )
     AS $$
       INSERT INTO user_accounts (name, password, access_token, current_session) VALUES (username, pass, token, 1);
       INSERT INTO user_sessions (user_id, id) VALUES ((SELECT id FROM user_accounts WHERE name=username), 1);
-      SELECT * FROM user_accounts WHERE name=username;
+      SELECT id, current_session FROM user_accounts WHERE name=username;
     $$
     LANGUAGE SQL;
 
